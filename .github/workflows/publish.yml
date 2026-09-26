@@ -1,0 +1,102 @@
+name: Publish
+
+# Builds linux/amd64 + linux/arm64 and pushes ghcr.io/<owner>/tor with the
+# Tor version as the tag (e.g. 0.4.9.13), plus the minor line (0.4.9) and
+# `latest`. The weekly run rebuilds the same Tor version so Debian security
+# fixes in the base reach the image; consumers pin by digest and move on
+# their own schedule. Pull requests build and smoke-test but never push.
+
+on:
+  push:
+    branches: [main]
+    paths: ["Dockerfile", ".github/workflows/publish.yml"]
+  pull_request:
+    paths: ["Dockerfile", ".github/workflows/publish.yml"]
+  schedule:
+    - cron: "23 5 * * 1"   # Mondays 05:23 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the pinned Tor version
+        id: v
+        run: |
+          full=$(sed -n 's/^ARG TOR_VERSION=//p' Dockerfile)
+          tor=${full%%-*}                                   # 0.4.9.13
+          {
+            echo "tor=$tor"
+            echo "minor=${tor%.*}"                          # 0.4.9
+            echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/tor"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (amd64) for the smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: tor:test
+
+      - name: Smoke test - version and runtime contract
+        run: |
+          set -eux
+          docker run --rm tor:test --version | grep -q "Tor version ${{ steps.v.outputs.tor }}"
+          docker run --rm --entrypoint bash tor:test -c '
+            set -e
+            [ "$(id -u):$(id -g)" = "1000:1000" ]
+            [ "$(getent passwd toruser | cut -d: -f6)" = "/data" ]
+            [ "$(stat -c "%u:%g %a" /data/.tor)" = "1000:1000 750" ]
+            command -v timeout'
+          # Bootstraps against the live network with a minimal torrc.
+          printf 'SocksPort 0.0.0.0:9050\nDataDirectory /data/.tor\n' > torrc
+          docker run -d --name tor-smoke -v "$PWD/torrc:/etc/tor/torrc:ro" tor:test
+          for _ in $(seq 1 60); do docker logs tor-smoke 2>&1 | grep -q "Bootstrapped 100%" && break; sleep 3; done
+          docker logs tor-smoke 2>&1 | tail -3
+          docker logs tor-smoke 2>&1 | grep -q "Bootstrapped 100%"
+          docker rm -f tor-smoke
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (amd64 + arm64)
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: true
+          sbom: true
+          tags: |
+            ${{ steps.v.outputs.image }}:${{ steps.v.outputs.tor }}
+            ${{ steps.v.outputs.image }}:${{ steps.v.outputs.minor }}
+            ${{ steps.v.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.title=tor
+            org.opencontainers.image.description=Tor ${{ steps.v.outputs.tor }} from the Tor Project Debian repository; drop-in for lncm/tor
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.v.outputs.tor }}
+            org.opencontainers.image.licenses=MIT

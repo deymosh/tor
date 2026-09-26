@@ -1,0 +1,13 @@
+# Proposes monthly PRs for the Debian base digest and the workflow actions.
+# Tor itself is an apt package pin (TOR_VERSION): bump it by hand when the
+# Tor Project repo ships a new release.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: monthly }
+    commit-message: { prefix: "build(deps)" }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    commit-message: { prefix: "ci" }
