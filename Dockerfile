@@ -29,6 +29,13 @@ RUN set -eux; \
     echo "deb [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org ${VERSION_CODENAME} main" \
         > /etc/apt/sources.list.d/tor.list; \
     apt-get update; \
+    available=$(apt-cache policy tor | sed -n 's/^  Candidate: //p'); \
+    if [ "$available" != "$TOR_VERSION" ]; then \
+        echo >&2 "ERROR: pinned TOR_VERSION=${TOR_VERSION} is no longer published" \
+             "(the Tor Project repo now ships tor=${available:-nothing})." \
+             "Bump ARG TOR_VERSION in the Dockerfile."; \
+        exit 1; \
+    fi; \
     apt-get install -y --no-install-recommends "tor=${TOR_VERSION}"; \
     apt-get purge -y --auto-remove curl gpg; \
     rm -rf /var/lib/apt/lists/* /tmp/tor.asc

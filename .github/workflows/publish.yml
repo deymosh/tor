@@ -44,6 +44,28 @@ jobs:
             echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/tor"
           } >> "$GITHUB_OUTPUT"
 
+      # The Tor Project repo keeps only the current release, so a stale pin
+      # breaks every scheduled build. Fail before the build with the exact
+      # reason instead of an apt error buried in buildx output.
+      - name: Check the pinned Tor version is still published
+        run: |
+          pinned=$(sed -n 's/^ARG TOR_VERSION=//p' Dockerfile)
+          suite=$(sed -n 's/^FROM debian:\([^-]*\)-slim.*/\1/p' Dockerfile)
+          for arch in amd64 arm64; do
+            current=$(
+              curl -fsSL "https://deb.torproject.org/torproject.org/dists/$suite/main/binary-$arch/Packages" \
+                | sed -n '/^Package: tor$/{n;s/^Version: //p}'
+            )
+            if [ -z "$current" ]; then
+              echo "::error::No 'tor' package found for $suite/$arch in the Tor Project repo - did the suite or repo layout change?"
+              exit 1
+            fi
+            if [ "$current" != "$pinned" ]; then
+              echo "::error::Pinned tor $pinned is gone from the Tor Project repo; $suite/$arch now ships $current. Bump ARG TOR_VERSION in the Dockerfile (and tag a new image)."
+              exit 1
+            fi
+          done
+
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
 
