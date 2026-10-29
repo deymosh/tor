@@ -32,4 +32,7 @@ fi
 # Tor's own requirement; DataDirectoryGroupReadable relaxes it to 0750 itself.
 chmod u+rwx,o-rwx "$data_dir"
 
+# setpriv keeps the environment: without toruser's own HOME, Tor's default
+# data directory would be root's ~/.tor.
+export HOME=/data
 exec setpriv --reuid=1000 --regid=1000 --init-groups tor "$@"
