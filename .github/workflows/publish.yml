@@ -9,9 +9,9 @@ name: Publish
 on:
   push:
     branches: [main]
-    paths: ["Dockerfile", ".github/workflows/publish.yml"]
+    paths: ["Dockerfile", "docker-entrypoint.sh", ".github/workflows/publish.yml"]
   pull_request:
-    paths: ["Dockerfile", ".github/workflows/publish.yml"]
+    paths: ["Dockerfile", "docker-entrypoint.sh", ".github/workflows/publish.yml"]
   schedule:
     - cron: "23 5 * * 1"   # Mondays 05:23 UTC
   workflow_dispatch:
@@ -83,7 +83,6 @@ jobs:
           docker run --rm tor:test --version | grep -q "Tor version ${{ steps.v.outputs.tor }}"
           docker run --rm --entrypoint bash tor:test -c '
             set -e
-            [ "$(id -u):$(id -g)" = "1000:1000" ]
             [ "$(getent passwd toruser | cut -d: -f6)" = "/data" ]
             [ "$(stat -c "%u:%g %a" /data/.tor)" = "1000:1000 750" ]
             command -v timeout'
@@ -94,6 +93,20 @@ jobs:
           docker logs tor-smoke 2>&1 | tail -3
           docker logs tor-smoke 2>&1 | grep -q "Bootstrapped 100%"
           docker rm -f tor-smoke
+          # Tor itself runs as toruser, not root.
+          docker run -d --name tor-uid tor:test --SocksPort 9050
+          sleep 2
+          [ "$(docker exec tor-uid sh -c 'stat -c %u:%g /proc/1')" = "1000:1000" ]
+          docker rm -f tor-uid
+          # A bind-mounted host folder owned by root, as Docker Desktop shows
+          # one: the entrypoint hands it to toruser and Tor bootstraps in it.
+          mkdir hostdir && sudo chown 0:0 hostdir && sudo chmod 0755 hostdir
+          docker run -d --name tor-bind -v "$PWD/hostdir:/data/.tor" tor:test             --DataDirectory /data/.tor --SocksPort 0.0.0.0:9050
+          for _ in $(seq 1 60); do docker logs tor-bind 2>&1 | grep -q "Bootstrapped 100%" && break; sleep 3; done
+          docker logs tor-bind 2>&1 | tail -3
+          docker logs tor-bind 2>&1 | grep -q "Bootstrapped 100%"
+          [ "$(stat -c %u:%g hostdir)" = "1000:1000" ]
+          docker rm -f tor-bind
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'

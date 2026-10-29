@@ -21,9 +21,17 @@ means changing only the `image:` line:
 
 | | |
 |---|---|
-| User | `toruser`, uid/gid **1000**, home `/data` |
-| Data dir | `/data/.tor`, pre-created `1000:1000`, mode `0750`, so a named volume seeds with that ownership |
-| Entrypoint | `tor`, which reads `/etc/tor/torrc` (bind-mount your own) |
+| User | Tor runs as `toruser`, uid/gid **1000**, home `/data` |
+| Data dir | `/data/.tor`, pre-created `1000:1000`, mode `0750`, so a named volume seeds with that ownership; a bind-mounted host folder works too (see below) |
+| Entrypoint | `docker-entrypoint.sh`, then `tor` with your arguments, which reads `/etc/tor/torrc` (bind-mount your own) |
+
+Tor refuses a data directory it does not own with mode `0700`, and a
+bind-mounted host folder arrives owned by whoever made it on the host (root,
+on Docker Desktop). So the entrypoint starts as root, hands the data
+directory (`--DataDirectory`, else the torrc's, else `/data/.tor`) to
+`1000:1000`, and drops to `toruser` before Tor starts; Tor itself never runs
+as root. Run with `--user 1000` to skip that step when the directory is
+already right.
 | Tools | `bash`, coreutils `timeout` (for healthchecks) |
 
 Set `DataDirectory /data/.tor` explicitly in your torrc. It is also Tor's
