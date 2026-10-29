@@ -14,7 +14,7 @@
 # pin fails the build loudly instead of silently installing something else.
 FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
-ARG TOR_VERSION=0.4.9.14-1~d13.trixie+1
+ARG TOR_VERSION=0.4.9.15-1~d13.trixie+1
 # Tor Project archive signing key (https://support.torproject.org/apt/tor-deb-repo/).
 # The downloaded key is trusted only if its fingerprint matches this.
 ARG TOR_KEY_FPR=A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89
