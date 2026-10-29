@@ -2,7 +2,9 @@
 #
 # A maintained, drop-in replacement for lncm/tor (unmaintained; last image
 # Tor 0.4.7 on Debian 11, both EOL). Same runtime contract:
-#   - runs as toruser, uid/gid 1000, home /data
+#   - runs Tor as toruser, uid/gid 1000, home /data (the entrypoint starts as
+#     root only to give the data directory to toruser, so a bind-mounted host
+#     folder works as well as a named volume, then drops to toruser)
 #   - DataDirectory /data/.tor exists, owned 1000:1000, mode 0750, so a named
 #     volume mounted there seeds with that ownership, and a group-readable
 #     control cookie (CookieAuthFileGroupReadable) works for gid-1000 readers
@@ -46,5 +48,5 @@ RUN groupadd -g 1000 toruser \
     && chown 1000:1000 /data/.tor \
     && chmod 0750 /data/.tor
 
-USER toruser
-ENTRYPOINT ["tor"]
+COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
