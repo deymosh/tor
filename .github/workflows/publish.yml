@@ -95,7 +95,8 @@ jobs:
           docker rm -f tor-smoke
           # Tor itself runs as toruser, not root.
           docker run -d --name tor-uid tor:test --SocksPort 9050
-          sleep 2
+          for _ in $(seq 1 60); do docker logs tor-uid 2>&1 | grep -q "Bootstrapped 100%" && break; sleep 3; done
+          docker logs tor-uid 2>&1 | tail -3
           [ "$(docker exec tor-uid sh -c 'stat -c %u:%g /proc/1')" = "1000:1000" ]
           docker rm -f tor-uid
           # A bind-mounted host folder owned by root, as Docker Desktop shows
