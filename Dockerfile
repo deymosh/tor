@@ -14,7 +14,7 @@
 # Build args are pinned; bump TOR_VERSION (and the base digest) together with
 # a new tag. The Tor Project repo keeps only the current release, so a stale
 # pin fails the build loudly instead of silently installing something else.
-FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
 
 ARG TOR_VERSION=0.4.9.15-1~d13.trixie+1
 # Tor Project archive signing key (https://support.torproject.org/apt/tor-deb-repo/).
