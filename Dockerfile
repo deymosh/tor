@@ -15,7 +15,7 @@
 # so a stale pin fails the build loudly instead of silently installing
 # something else; the Bump Tor workflow moves TOR_VERSION, Dependabot the
 # base digest.
-FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 
 ARG TOR_VERSION=0.4.9.17-1~d13.trixie+1
 # Tor Project archive signing key (https://support.torproject.org/apt/tor-deb-repo/).
