@@ -75,9 +75,11 @@ volumes:
 
 ## Updating
 
-- **New Tor release:** set `TOR_VERSION` to the version in
-  `https://deb.torproject.org/torproject.org/dists/trixie/main/binary-amd64/Packages`
-  and merge. CI publishes the new tags.
+- **New Tor release:** automatic. The daily `Bump Tor` workflow compares
+  `TOR_VERSION` with the Tor Project repo and, when both arches ship a newer
+  release, commits the bump to `main` and starts `Publish`, which smoke-tests
+  it before pushing the new tags. Run `Bump Tor` by hand to pick up a
+  release right away.
 - **Base image and actions:** Dependabot opens monthly PRs.
 - **Debian security fixes:** picked up by the weekly rebuild, with no change
   needed.

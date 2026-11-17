@@ -61,7 +61,7 @@ jobs:
               exit 1
             fi
             if [ "$current" != "$pinned" ]; then
-              echo "::error::Pinned tor $pinned is gone from the Tor Project repo; $suite/$arch now ships $current. Bump ARG TOR_VERSION in the Dockerfile (and tag a new image)."
+              echo "::error::Pinned tor $pinned is gone from the Tor Project repo; $suite/$arch now ships $current. Run the Bump Tor workflow, or bump ARG TOR_VERSION in the Dockerfile."
               exit 1
             fi
           done

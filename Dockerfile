@@ -11,9 +11,10 @@
 #   - entrypoint `tor`, which reads /etc/tor/torrc (bind-mount your own)
 #   - bash + coreutils (timeout) available for healthchecks
 #
-# Build args are pinned; bump TOR_VERSION (and the base digest) together with
-# a new tag. The Tor Project repo keeps only the current release, so a stale
-# pin fails the build loudly instead of silently installing something else.
+# Build args are pinned. The Tor Project repo keeps only the current release,
+# so a stale pin fails the build loudly instead of silently installing
+# something else; the Bump Tor workflow moves TOR_VERSION, Dependabot the
+# base digest.
 FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
 ARG TOR_VERSION=0.4.9.17-1~d13.trixie+1
