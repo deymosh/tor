@@ -5,12 +5,12 @@ Debian repository** on a digest-pinned `debian:trixie-slim`, published for
 `linux/amd64` and `linux/arm64`.
 
 ```
-ghcr.io/deymosh/tor:0.4.9.15     # a Tor release (rebuilt weekly with base-image fixes)
+ghcr.io/deymosh/tor:0.4.9.17     # a Tor release (rebuilt weekly with base-image fixes)
 ghcr.io/deymosh/tor:0.4.9        # latest build of that minor line
 ghcr.io/deymosh/tor:latest
 ```
 
-Pin a digest in anything that matters: `ghcr.io/deymosh/tor:0.4.9.15@sha256:…`.
+Pin a digest in anything that matters: `ghcr.io/deymosh/tor:0.4.9.17@sha256:…`.
 The weekly rebuild produces a new digest under the same tag.
 
 ## Drop-in for `lncm/tor`
@@ -51,7 +51,7 @@ DataDirectoryGroupReadable 1
 ```yaml
 services:
   tor:
-    image: ghcr.io/deymosh/tor:0.4.9.15@sha256:<digest>
+    image: ghcr.io/deymosh/tor:0.4.9.17@sha256:<digest>
     restart: unless-stopped
     volumes:
       - ./torrc:/etc/tor/torrc:ro
