@@ -1,6 +1,6 @@
 # Proposes monthly PRs for the Debian base digest and the workflow actions.
-# Tor itself is an apt package pin (TOR_VERSION): bump it by hand when the
-# Tor Project repo ships a new release.
+# Tor itself is an apt package pin (TOR_VERSION) that Dependabot cannot
+# track; the Bump Tor workflow (bump-tor.yml) bumps it instead.
 version: 2
 updates:
   - package-ecosystem: docker

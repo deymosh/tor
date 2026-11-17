@@ -1,0 +1,95 @@
+name: Bump Tor
+
+# The Tor Project repo keeps only the current Tor release, so the pin in the
+# Dockerfile goes stale - and every build fails - as soon as a new one ships.
+# Daily, compare the pin with the repo; when amd64 and arm64 both ship the
+# same newer version, commit the bump to main and start Publish, which builds
+# and smoke-tests that version (including a live bootstrap) before it pushes
+# any image. A failed smoke test publishes nothing and leaves the previous
+# images in place.
+#
+# A commit pushed with GITHUB_TOKEN does not trigger other workflows, so
+# Publish is started explicitly with workflow_dispatch.
+
+on:
+  schedule:
+    - cron: "41 4 * * *"   # daily 04:41 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: bump-tor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # push the bump commit to main
+      actions: write    # dispatch Publish
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Compare the pin with the Tor Project repo
+        id: check
+        run: |
+          pinned=$(sed -n 's/^ARG TOR_VERSION=//p' Dockerfile)
+          suite=$(sed -n 's/^FROM debian:\([^-]*\)-slim.*/\1/p' Dockerfile)
+          versions=$(
+            for arch in amd64 arm64; do
+              curl -fsSL "https://deb.torproject.org/torproject.org/dists/$suite/main/binary-$arch/Packages" \
+                | sed -n '/^Package: tor$/{n;s/^Version: //p}'
+            done | sort -u
+          )
+          if [ -z "$versions" ]; then
+            echo "::error::No 'tor' package found for $suite in the Tor Project repo - did the suite or repo layout change?"
+            exit 1
+          fi
+          if [ "$(printf '%s\n' "$versions" | wc -l)" -ne 1 ]; then
+            echo "::warning::amd64 and arm64 ship different tor versions ($(echo $versions)); waiting for the repo to settle."
+            exit 0
+          fi
+          current=$versions
+          if [ "$current" = "$pinned" ]; then
+            echo "Pinned tor $pinned is current."
+            exit 0
+          fi
+          if ! dpkg --compare-versions "$current" gt "$pinned"; then
+            echo "::warning::The Tor Project repo ships $current, older than the pinned $pinned; not downgrading."
+            exit 0
+          fi
+          {
+            echo "pinned=$pinned"
+            echo "current=$current"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Commit the bump to main
+        if: steps.check.outputs.current
+        env:
+          PINNED: ${{ steps.check.outputs.pinned }}
+          CURRENT: ${{ steps.check.outputs.current }}
+        run: |
+          old=${PINNED%%-*}                                 # 0.4.9.15
+          new=${CURRENT%%-*}                                # 0.4.9.17
+          sed -i "s/^ARG TOR_VERSION=.*/ARG TOR_VERSION=$CURRENT/" Dockerfile
+          sed -i "s/${old//./\\.}/$new/g" README.md         # image tags in the examples
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -a -F - <<EOF
+          chore: bump Tor to $new
+
+          The Tor Project repo keeps only the current release, so $old was
+          removed when $new shipped. Automated by the Bump Tor workflow.
+          EOF
+          git push origin HEAD:main
+
+      - name: Start Publish on main
+        if: steps.check.outputs.current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run publish.yml --ref main
